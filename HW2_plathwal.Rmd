@@ -1,0 +1,483 @@
+---
+title: "Homework2"
+author: "Priyank Lathwal"
+date: "February 18, 2018"
+output: pdf_document
+---
+
+```{r setup, include= FALSE, warning= FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r lib, include= FALSE, warning= FALSE, echo=FALSE}
+library(knitr)
+library(AER)
+library(quantreg)
+data(CPS1988)
+```
+
+## Problem 1
+
+**Conduct the median (LAD) regressions**
+
+```{r}
+# Define variables for the median (LAD) regressions
+Y <- cbind(log(CPS1988$wage))
+X <- cbind(CPS1988$ethnicity, CPS1988$education, CPS1988$experience, 
+          I(CPS1988$experience^2))
+X1 <- cbind(CPS1988$ethnicity, CPS1988$education, CPS1988$experience, 
+           I(CPS1988$experience^2), 
+           I(CPS1988$experience^3),I(CPS1988$experience^4))
+
+# Median (LAD) regression for Table 1.A.; tau=0.50 for median regression
+
+quantreg50table1a <- rq(Y~X, data = CPS1988, tau = 0.50) 
+summary(quantreg50table1a)
+
+# Median (LAD) regression for Table 2.A.; tau=0.50 for median regression
+quantreg50table2a <- rq(Y~X1, data = CPS1988, tau = 0.50)
+summary(quantreg50table2a)
+```
+
+## Problem 2
+
+**Compare your results to those reported in the paper**
+Overall, we were able to replicate the coefficient values upto 4th decimal place but not the t- statistic values. As can be seen from our results, for the Mincer type model in Table 1.A., our estimates are similar up to 4th decimal place. But the t- statistics values tend to vary a lot. For example, there is a variation of approximately $2$ units in the race coefficient but then there is a variation of approximately $40$ units in the t- statistic for the intercept coefficient. It is possible that we experience these changes in t- statistics due to authors' assumptions mentioned in Section 6.4. 
+Similarly, for the quartic model in Table 2.A., we see similar fluctiations in the t- statistic values for different regressors in the quartic model which can be explained by above reasoning.
+
+# Problem 3
+
+**Briefly explain what you think the regression summaries mean (give it your best)**
+The above regression is a log- level specification and is a relationship between log of weekly wages and independent variables. All the independent variables seem to be statistically significant. The coefficients represent % changes in wages when raised to the exponential for example, keeping everything else constant (cetris paribus), a unit increase in experience leads to (e^0.076) 1.07% increase in weekly wage and its coefficient is statistically significant. 
+
+\break
+
+This report gives presents a short summary of the 5 data stories applied on the CPS 1988 data set used in the Bierens and Ginther (2001). Initially we are applying the 20/60/20 rule to subset the data dividing the data into **observed**, **train** and **test** data sets.
+
+## Problem 1
+
+**Use the first 20% of the data for the first 4 parts. Create histograms of the wages, log wages, education, and experience variables, with a summary of what you're seeing**
+
+```{r}
+## Applying 20/60/20 rule on CPS 1988 data set
+
+# Divide the cases as evenly as possible for five fold CV
+case.folds <- rep(1:5, length.out = nrow(CPS1988))
+
+# Create observed, training and test datasets
+observed <- CPS1988[case.folds == 1,] # 20% data for determining model fit
+train <- CPS1988[case.folds!=1 & case.folds!=5,] # 60% data for training the model
+test <- CPS1988[case.folds == 5,] # 20% data for testing the model
+```
+
+## Problem 1. Data summary story- Histograms
+
+Before doing any data analysis, its imperative to gather a better understanding of the kind of data we have in our dataset. The point of a histogram to get a sense of underlying distribution generating the data. (Davis, Class Notes 2018). For this purpose, we plot histograms of wages, log wages, education and experience variables.
+
+To calculate the **bin width**, we use the Freedman- Diaconis rule since we don't have a sense of the distribution and outliers in our data.
+
+```{r fig.align='center', fig.width= 4, fig.height=4}
+# Histogram for weekly wages
+hist(observed$wage, 
+     xlim   = c(min(observed$wage), max(observed$wage)),
+     main   = "Histogram for weekly wages", 
+     breaks = "FD",  # Using Freedman- Diaconis rule for bin width
+     col    = "red", # make data red
+     font.lab = 2, # font for x and y labels
+     xlab   = "Weekly Wage (in $)", # x axis label
+     ylab   = "Frequency" ) # y axis label
+rug(jitter(observed$wage)) # put individual ticks for observations
+```
+
+It seems that the histogram for weekly wages is right skewed. Most of the values are concentrated for weekly wages $\leq\$1000$. However, we observe a very high weekly wage value $\geq\$6000$ and an increase in the frequency of weekly wages around $\$2400$.So its unclear whether this is a truncated sample or if there is some inherent bias in the data and we try to calculate the log of weekly wages in order to understand the data better.
+
+```{r fig.align='center', fig.width= 4, fig.height=4}
+# Histogram for log(wages)
+hist(log(observed$wage), 
+     xlim   = c(min(log(observed$wage)), max(log(observed$wage))),
+     main   = "Histogram for Wages",
+     breaks = "FD",  # Using Freedman- Diaconis
+     col    = "orange", # make data orange
+     font.lab = 2, # font for x and y labels
+     xlab   = "Log of weekly wage in $", # x axis label
+     ylab   = "Frequency" ) # y axis label
+rug(jitter(log(observed$wage)))
+```
+As seen from the second histogram, there seems to be much less skewness in the log plot of weekly wages compared to the first histogram and it looks more like a normal distribution. However, we still observe bumps and really long right tail with outliers.
+
+```{r fig.align='center', fig.width= 8, fig.height=4}
+# Histogram for education
+hist(observed$education,
+     xlim   = c(0, 20),
+     main   = "Histogram for education", 
+     breaks = seq(0, max(observed$education), by = 1),
+     col    = "blue", # make data blue
+     font.lab = 2, # font for x and y labels  
+     xlab   = "Education (in years)", # x axis label
+     ylab   = "Frequency" ) # y axis label
+rug(jitter(observed$education))
+```
+Note: In this particular case, we are not following the "F-D Rule" for bin width but are manually sequencing them by 1 year b/w maximum and minimum values for years of education to get better alignment with the data we have.
+
+The histogram of education shows maximum frequency for **12 years** and most of the data points concentrated to the right of the distribution. This implies that most of our sample of men atleast have completed high school diploma. Some people also seem to have advanced college degrees. There are more value to the right of 12 years than to the left tail of 12 years meaning that our sample is well educated.
+
+```{r fig.align='center', fig.width= 8, fig.height=4}
+# Histogram for experience
+hist(observed$experience,
+     xlim   = c(min(observed$experience),max(observed$experience)),
+     main   = "Histogram for experience",
+     breaks = 'FD',
+     col    = "yellow", # make data yellow
+     font.lab = 2, # font for x and y labels  
+     xlab   = "Experience (in years)", # x axis label
+     ylab   = "Frequency" ) # y axis label
+rug(jitter(observed$experience))
+```
+
+In the experience histogram, we observe a large number of sample population concentrated in $0- 20$ years with a median value between $15- 20$ years. However, we see some negative values for experience in this data set. This maybe because the authors have calculated their experience term as Age - years of schooling - 6. So possibly some people who are in their teens are contributing to these negative values of experience. 
+
+## Problem 2. Data Summary Story- Scatterplots
+
+```{r fig.align='center', fig.width= 8, fig.height=4}
+plot(-100, -100, 
+     xlim = c(min(observed$education),max(observed$education)), 
+     ylim = c(0, max(observed$wage)),  # set y axis limits
+     type = "n", # plot nothing
+     xlab = "Education (in years)",
+     ylab = "Weekly Wage (in $)",
+     main = "Scatterplot of weekly wage against education")  
+
+points(jitter(observed$wage) ~ factor(observed$education), 
+       data = observed,
+       pch  = 21,  # pch chooses the point character
+       cex = 1.5, 
+       bg = "black",
+       col  = rgb(0, 0, 0, .2))
+wage.regression <- lm(observed$wage ~ observed$education)
+mwage.regression <- rq(observed$wage ~ observed$education, tau = 0.50) 
+abline(wage.regression, col = "red", lwd = 2) # fitted linear regression line
+abline(mwage.regression, col= "green", lwd = 2) # median regression line
+```
+
+After looking at the wage scatterplot against education, we observe that the range of data points is varying with increasing years of education with a few outliers having very high wage values. Though the fitted regression line has a slight trend upwards, its difficult to point out anything with this at the moment. Lets plot the log of weekly wage to see if we any trend there. 
+
+```{r fig.align='center', fig.width= 8, fig.height=4}
+plot(-100, -100, 
+     xlim = c(min(observed$education),max(observed$education)), 
+     ylim = c(0, max(log(observed$wage))),  # set y axis limits
+     type = "n", # plot nothing
+     xlab = "Education (in years)",
+     ylab = "Log of Weekly Wage (in $)",
+     main = "Scatterplot of log of weekly wage against education")  
+
+points(jitter(log(observed$wage)) ~ factor(observed$education), 
+       data = observed,
+       pch  = 21,  # pch chooses the point character
+       cex = 1.5, 
+       bg = "black",
+       col  = rgb(0, 0, 0, .2))
+logwage.regression <- lm(log(observed$wage) ~ observed$education)
+mlogwage.regression <- rq(log(observed$wage) ~ observed$education)
+abline(logwage.regression, col = "red", lwd = 2) # fitted linear regression line
+abline(mlogwage.regression, col = "green", lwd = 2) # median regression line
+```
+
+In the second scatter plot, the relationship between wages and education becomes much clearer by taking log of weekly wages against education. Here, we see that more years of education is likely contributing to higher variation in wages and the fitted regression line has a strong upward trend.
+
+```{r fig.align='center', fig.width= 8, fig.height=4}
+plot(-100, -100, 
+     xlim = c(min(observed$experience),max(observed$experience)), 
+     ylim = c(0, max(observed$wage)),  # set y axis limits
+     type = "n", # plot nothing
+     xlab = "Experience (in years)",
+     ylab = "Weekly Wage (in $)",
+     main = "Scatterplot of weekly wage against experience")  
+
+points(jitter(observed$wage) ~ factor(observed$experience), 
+       data = observed,
+       pch  = 21,  # pch chooses the point character
+       cex = 1.5, 
+       bg = "grey",
+       col  = rgb(0, 0, 0, .2))
+wage.regression <- lm(observed$wage ~ observed$experience)
+mwage.regression <- rq(observed$wage ~ observed$experience, tau = 0.50) 
+abline(wage.regression, col = "red", lwd = 2) # fitted linear regression line
+abline(mwage.regression, col= "green", lwd = 2) # median regression line
+```
+As in the first scatter plot, it is difficult to interpret the association between weekly wage and years of experience as the data are all concentrated b/w $0-20$ years. Both the median and fitted regression lines are relatively flat. So, let's take log of wages against years of experience.
+
+```{r fig.align='center', fig.width= 8, fig.height=4}
+plot(-100, -100, 
+     xlim = c(min(observed$experience),max(observed$experience)), 
+     ylim = c(0, max(log(observed$wage))),  # set y axis limits
+     type = "n", # plot nothing
+     xlab = "Experience (in years)",
+     ylab = "Weekly Wage (in $)",
+     main = "Scatterplot of weekly wage against experience")  
+
+points(jitter(log(observed$wage)) ~ factor(observed$experience), 
+       data = observed,
+       pch  = 21,  # pch chooses the point character
+       cex = 1.5, 
+       bg = "grey",
+       col  = rgb(0, 0, 0, .2))
+wage.regression <- lm(log(observed$wage) ~ observed$experience)
+mwage.regression <- rq(log(observed$wage) ~ observed$experience, tau = 0.50) 
+abline(wage.regression, col = "red", lwd = 2) # fitted linear regression line
+abline(mwage.regression, col= "green", lwd = 2) # median regression line
+```
+From the fourth scatter plot of log of weekly wages against years of experience, the association becomes much clearer. Both the fitted regression lines and median regression lines have a strong upward trend and more years of experience result in higher wages.
+
+## Problem 3. Conditional Distribution Story
+** Compare wages and log wages to the normal distribution, with a summary of what you think is going on**
+
+Here we will be comparing the weekly wages and log(weekly wages) to a normal distribution and use a QQ plot instead of a sorted plot because the size of data will be a factor in our comparison. The graph below compares 10000 random draws from a normal distribution with the same mean and standard deviation as the **observed** data set. This is based on the smaller of the two data sets
+
+```{r fig.align='center', fig.width= 8, fig.height=4} 
+# Sample of 10000 random draws from a normal distribution
+
+norm <- rnorm(1000, mean(observed$wage), sd(observed$wage))
+
+# Create quantiles for the plot
+observed.quantile <- quantile(observed$wage, probs = (seq(1,1000,1)- 0.5)/1000, type = 4)
+norm.quantile <- quantile(norm, probs = (seq(1,1000,1) - 0.5)/1000, type = 4)
+
+# Minimum and maximum for the plot
+min.q <- floor(min(observed.quantile, norm.quantile))
+max.q <- ceiling(max(observed.quantile, norm.quantile))
+
+# QQ Plot
+plot(norm.quantile, observed.quantile,
+     xlim = c(min.q, max.q),
+     ylim = c(min.q, max.q),
+     ylab = "Quantiles of CPS Wage data",
+     xlab = "Quantiles of draws from normal distribution",
+     pch  = 19,
+     col = rgb(0, 0, 0, 0.4))
+abline(a=0, b=1,col="red")
+```
+
+As seen from the above QQ plot, the wage distribution is not normal. Let's try to take log of weekly wages and see the results next.
+
+```{r fig.align='center', fig.width= 8, fig.height=4}
+# Sample of 10000 random draws from a normal distribution
+set.seed(1)
+norm <- rnorm(10000, mean(log(observed$wage)), sd(log(observed$wage)))
+
+# Create quantiles for the plot
+observed.quantile <- quantile(log(observed$wage), probs = (seq(1,10000,1)- 0.5)/10000, type = 4)
+norm.quantile <- quantile(norm, probs = (seq(1,10000,1) - 0.5)/10000, type = 4)
+
+# Minimum and maximum for the plot
+min.q <- floor(min(observed.quantile, norm.quantile))
+max.q <- ceiling(max(observed.quantile, norm.quantile))
+
+# QQ Plot
+plot(norm.quantile, observed.quantile,
+     xlim = c(min.q, max.q),
+     ylim = c(min.q, max.q),
+     ylab = "Quantiles of CPS Wage data",
+     xlab = "Quantiles of draws from normal distribution",
+     pch  = 19,
+     col = rgb(0, 0, 0, 0.4))
+abline(a=0, b=1,col="red")
+```
+From the second QQ plot, we can see that the log of weekly wages follows a normal distribution.
+
+## Problem 4. Regression Residuals
+** Plot the regression residuals for the regressions in Table 1.A. and 2.A., using OLS rather than median regression**
+
+"Another way to look at whether our conditional distribution story works well is to look at the distribution of regression residuals." (Davis' book, p. 149, 2018)
+
+```{r fig.align='center', fig.width= 8, fig.height=4}
+Y <- cbind(log(observed$wage))
+X <- cbind(observed$ethnicity, observed$education, observed$experience, 
+          I(observed$experience^2))
+lregtable1A <- lm(Y~X) 
+
+qqPlot(lregtable1A,
+     main = "Regression Residuals for Table 1.A",
+     id.n = 3,
+     pch  = 19,
+     col  = rgb(0, 0, 0, .5))
+abline(a = 0, b = 1, lwd = 2)
+```
+
+```{r fig.align='center', fig.width= 8, fig.height=4}
+Y <- cbind(log(observed$wage))
+X1 <- cbind(observed$ethnicity, observed$education, observed$experience, 
+           I(observed$experience^2), 
+           I(observed$experience^3),I(observed$experience^4))
+lregtable2A <- lm(Y~X1) 
+
+qqPlot(lregtable2A,
+     main = "Regression Residuals for Table 2.A",
+     id.n = 3,
+     pch  = 19,
+     col  = rgb(0, 0, 0, .5))
+abline(a = 0, b = 1, lwd = 2)
+```
+
+The residual plots suggest that outliers are higher towards the lower end of data and higher towards the higher end of the data. Also, the model is over predicting at the lower end of the data and underpredicting at the higher end of the data. 
+These outliers are of **Type B**. They have high leverage and low discrepancy and thus don't affect the slope of the regression line much.
+Median Regression would be more appropriate for these data because it is less sensitive to outliers compared to ordinary linear regression. 
+
+## Problem 5 Forecasting Story- Back casting and cross validation
+** Using Median or OLS regression, evaluate the back casting quality of the Mincer type model....**
+
+In this story, we predict our model's ability to predict the data we have through back casting. 
+```{r, warning = FALSE}
+
+quantreg50table1a <- rq(log(observed$wage)~ ethnicity + education + experience + I(experience^2), data = observed, tau = 0.50) 
+
+# Using regression to back cast the data
+pred <- predict(quantreg50table1a, observed)
+
+# Min. and max. values for plot
+min.plot <- floor(min(log(observed$wage), pred)) 
+max.plot <- ceiling(max(log(observed$wage), pred)) 
+
+# Plotting the backcast 
+plot(pred, log(observed$wage),
+  xlab = "Predicted Log of Weekly Wage",
+  ylab = "Actual Log of Weekly Wage",
+  xlim = c(min.plot, max.plot),
+  ylim = c(min.plot, max.plot),
+  pch  = 19,
+  cex  = 0.5)
+abline(a = 0, b = 1, col = "red", lwd = 2)
+
+```
+From back casting, we observe that the authors' model is not predicting actual values accurately as the data aren't lying on the diagnol perfectly and the range of prediction is limited from the model. The predicted log values are clustered between the range of $5-7$ in the form of a blob. However, as we can see, actual log values extend well beyond 7. So, it seems that there can be a better model to predict the data and there might be omitted variable bias. In order to do this, we do 5 fold cross validation with the subsetted 60% **train** data set from CPS 1988. 
+
+** Cross- validation **
+In cross- validation, I select 3 different models. They are as following:
+Model1 - Mincer type model
+Model2 - Quartic Model
+Model3 - Here we add two interaction terms **smsa*experience** + **ethnicity*experience** to the quartic model. Intuitively, it seems that the wages would be effected by an individual's years of experience and their area of residence. Additionally, ethnicity would play an important role in wages in the American context.
+
+```{r, warning = FALSE}
+cv <- function(n){
+nfolds = n
+
+#Divide the cases as evenly as possible
+cv.case.folds <- rep(1:nfolds, length.out = nrow(train))
+
+#Create empty vectors to store results
+m1 <- c()  
+m2 <- c()
+m3 <- c()
+
+for (fold in 1:nfolds) {
+  
+  # Create training and test cases
+  cvtrain <- train[cv.case.folds != fold, ]
+  cvtest  <- train[cv.case.folds == fold, ]
+
+  # Run the models
+  train1 <- rq(log(cvtrain$wage) ~ ethnicity + education + experience + I(experience^2), data =    cvtrain, tau = 0.50)
+  train2 <- rq(log(cvtrain$wage) ~ ethnicity + education + experience + I(experience^2) + I(experience^3) + I(experience^4), data = cvtrain, tau = 0.50)
+  train3 <- rq(log(cvtrain$wage) ~ ethnicity + education + experience + I(experience^2) + I(experience^3) + I(experience^4) + smsa*experience + ethnicity*experience, data = cvtrain, tau = 0.50)
+
+  # Generate test MSEs
+  test1 <- (log(cvtest$wage) - predict(train1, cvtest))^2
+  test2 <- (log(cvtest$wage) - predict(train2, cvtest))^2
+  test3 <- (log(cvtest$wage) - predict(train3, cvtest))^2
+
+  # Calculate rMSEs
+  rMSEtest1 <- sqrt(sum(test1)/length(test1))
+  rMSEtest2 <- sqrt(sum(test2)/length(test2))
+  rMSEtest3 <- sqrt(sum(test3)/length(test3))
+
+  # Append the rMSE from this iteration to vectors
+  m1 <- c(m1, rMSEtest1)  
+  m2 <- c(m2, rMSEtest2)  
+  m3 <- c(m3, rMSEtest3)
+}
+
+  # Average the MSEs
+  m1.avg <- mean(m1)
+  m2.avg <- mean(m2)
+  m3.avg <- mean(m3)
+  
+  return(c(m1.avg,m2.avg,m3.avg))
+}
+
+rMSEcompare <- cv(5)
+print(rMSEcompare)
+```
+
+Now we take 80% of the entire CPS 1988 data and train our model.
+
+```{r, warning = FALSE}
+
+newmodeltrain <- CPS1988[case.folds != 5,]  # 80% data for model training
+
+m1.train <- rq(log(newmodeltrain$wage) ~ ethnicity + education + experience + I(experience^2), data = newmodeltrain, tau = 0.50)
+m2.train <- rq(log(newmodeltrain$wage) ~ ethnicity + education + experience + I(experience^2) + I(experience^3) + I(experience^4), data = newmodeltrain, tau = 0.50)
+m3.train <- rq(log(newmodeltrain$wage) ~ ethnicity + education + experience + I(experience^2) + I(experience^3) + I(experience^4) + smsa*experience + ethnicity*experience, data = newmodeltrain, tau = 0.50)
+
+# Testing the models
+m1.test <- (log(test$wage)- predict(m1.train, test))^2
+m2.test <- (log(test$wage)- predict(m2.train, test))^2
+m3.test <- (log(test$wage)- predict(m3.train, test))^2
+
+# Calculate rMSE for models
+m1.rMSEtest1 <- sqrt(sum(m1.test)/length(m1.test))
+m2.rMSEtest2 <- sqrt(sum(m2.test)/length(m2.test))
+m3.rMSEtest3 <- sqrt(sum(m3.test)/length(m3.test))
+rMSE = c(m1.rMSEtest1,m2.rMSEtest2,m3.rMSEtest3)
+print (rMSE)
+```
+
+The rMSE for our model is the lowest (0.577).
+
+## Problem 6: Statistical Inference Story
+"Statistical Inference is about two things- (1) random sample assumption and (2) population".(Davis, Class Notes, 2018). 
+Population Issues:
+In the current research paper, there are a few loop holes due to which concluding statistical inference is really difficult. So we should ask the question, how the data were collected and what were the ethnicities considered while collecting the sample. We don't know how the sample was collected. CPS uses a multistage stratified random sampling method (Wikipedia, 2018) but is subject to voluntary participation of study constituents. Then there is the issue of limited sample scope. More specifically, the authors collect data of only two ethnicities- Caucasian and African Americans for population of males aged 18- 70 years old which might have selection bias issues due to availability of data.
+Random Sample assumption is questionable:
+Secondly, the random sample assumption is difficult to prove and is challenging to hold in real world. This is because there might be a possibility where people have dropped out/ died during the duration of the CPS study and then CPS is either stuck with missing values or approximate the values for the people who weren't available. Then random sample assumption is violated. This leads to errors in the sample observations. The authors don't provide any information on the randomness of the sample.
+
+In light of the above considerations, it is of no use to have a confidence interval and whatever measurements we get from the confidence interval band will be invalid. 
+
+## Problem 7: Causal Inference Story
+I don't think that we can make causal claims about the regression models used in the study. More specifically, there is the issue of 
+(1) Random Assignment Assumption: There is no information if there was random assignment and CPS uses multistage stratified random sampling (Wikipedia, 2018) which doesn't help much because its a voluntary study.
+(2) Limited Sample Selection: The study was limited to only a sample selection of males of only two ethnicities. So, these findings are limited in scope and it would be erroneous to generalize causal effects from them for the entire population. Therefore, external validity is lacking in the study.
+(3) Omitted Variable Bias: It may be the case, as in economics literature, that other variables such as "ability" can be correlated to the independent regressors such as education and work experience. In that situation, the causal claims of the study would fail. 
+
+## Problem 8 
+
+** Extending Conditional Distribution Story**
+While going through the analysis, I was very intrigued to find out the biggest potential liars that can have an impact on our analysis. We can achieve this by plotting the influence plot which gives us all on a single plot, including Cook's Distance, the Jackknife residuals (called studentized residuals in the plot), hat values, and a p- value. I intend to plot the influence diagram to extend the conditional distribution summary. 
+
+```{r}
+m3.train <- lm(log(wage) ~ ethnicity + education + experience + I(experience^2) + I(experience^3) + I(experience^4) + smsa*experience + ethnicity*experience, data = CPS1988)
+png(filename = "influenceindex.png", width = 3000, height = 3000, res = 300)
+# Influence index plot and identify the largest three observations
+influenceIndexPlot(m3.train, id.n = 3)
+dev.off()
+```
+
+** Extending Data Summary Story**
+Here, I want to check how the wages data points are distributed in CPS 1988 and plotting a box plot for the same. Initially, I try to plot wages but then it doesn't give us adequate information. So, we take log(wage) in the second box plot to find discriptive statistics in CPS 1988 wages. 
+## Boxplot
+```{r}
+
+
+boxplot(CPS1988$wage, data=CPS1988, main="Weekly Wage (in $)", 
+        ylim = c(3, max(CPS1988$wage)),
+  	    xlab="Education (in years)", ylab="Weekly Wage (in $)")
+
+```
+So we don't get a good fit for the box plot and can't conclude about the summary statistics for wages in CPS 1988. Let's take log(wage) and then plot the box plot. 
+
+```{r}
+boxplot(log(CPS1988$wage), data=CPS1988, 
+        main="Weekly Wage (in $)",
+        ylim = c(3, max(log(CPS1988$wage))),
+  	    xlab="Education (in years)", ylab="Weekly Wage (in $)")
+```
+
+As we can see the log(wage) gives us a better fit. It also shows that the median of the wage values is $6 and the higher values have more outliers. 
